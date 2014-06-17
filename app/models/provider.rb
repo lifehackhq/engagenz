@@ -4,5 +4,6 @@ class Provider < ActiveRecord::Base
   belongs_to :region
   has_and_belongs_to_many :categories
 
-  validates :name, :phone_number, :region, presence: true
+  validates :name, :region, presence: true
+  # validates :phone_number, presence: true
 end

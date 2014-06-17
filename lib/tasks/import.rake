@@ -28,6 +28,8 @@ def parse_and_create_providers(text, region=nil)
   provider_line = 0
   # p = Provider.new(region_id: region.id)
 
+  @log = File.open('log/import_errors.txt', 'w+')
+
   lines.each_with_index do |line, i|
     if is_a_region_title?(line)
       region_name = line.scan(/[a-zA-z]+\s*[a-zA-z\s]*[a-zA-z]+/).first.titlecase
@@ -37,7 +39,18 @@ def parse_and_create_providers(text, region=nil)
 
     if line.empty?
       # p p
-      @p.save!
+      if @p.present?
+        begin
+          @p.save
+        rescue => e
+          @log << e.message
+          @log << "\n"
+          @log << "#{@p.inspect}\n"
+          @log << e.backtrace
+          @log << "\n\n"
+        end
+      end
+
       @p = Provider.new(region_id: @region.id)
       provider_line = -1
     end
@@ -48,7 +61,12 @@ def parse_and_create_providers(text, region=nil)
     when 0
       printf "-----------------------------\n"
       printf "%3s %15s:  \e[32m%s\e[0m\n" % [provider_line, 'name', line]
-      @p.name = line
+      if line.length > 100
+        @p.name = line.split(':').first
+        @p.description = line.split(':')[1..-1].join(':') + ' '
+      else
+        @p.name = line
+      end
     else
       if is_an_email?(line)
         nice_print(provider_line, "email", line)
@@ -70,6 +88,7 @@ def parse_and_create_providers(text, region=nil)
 
     provider_line += 1
   end
+  @log.close
 end
 
 def open_file(filename)
@@ -81,11 +100,11 @@ def is_an_address?(string)
 end
 
 def is_a_phone_number?(string)
-  string.scan(/\(?[0-9\s]+\)?[0-9\s]*$/).present?
+  string.scan(/\(?[0-9\s]+\)?[0-9\s]{6,}$/).present?
 end
 
 def is_an_email?(string)
-  string.scan(/^\s*[a-zA-Z0-9\_\.@]+\s*$/).present?
+  string.scan(/^\s*[a-zA-Z0-9\_\-\.]+@[a-zA-Z0-9\_\-\.]+\s*$/).present?
 end
 
 def is_a_website?(string)
